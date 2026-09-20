@@ -14,6 +14,7 @@ import java.time.Duration;
  * @param validade        por quanto tempo a previsão conta como VALIDA no mapa (usada só quando
  *                        o serviço não informa {@code validaAte})
  * @param idadeMaximaLeitura leitura mais velha que isso não é enviada: o sensor conta como sem leitura
+ * @param cacheRegioes    por quanto tempo o aviso por região fica em cache no backend
  * @param tamanhoLote     itens por chamada de {@code /predict/batch} (o serviço aceita até 500)
  * @param falhasParaAbrir falhas seguidas que desligam o serviço temporariamente
  * @param pausaAposFalhas quanto tempo ficar sem tentar depois de abrir
@@ -25,6 +26,7 @@ public record PrevisaoProperties(
         Duration timeout,
         Duration validade,
         Duration idadeMaximaLeitura,
+        Duration cacheRegioes,
         int tamanhoLote,
         int falhasParaAbrir,
         Duration pausaAposFalhas
@@ -42,6 +44,9 @@ public record PrevisaoProperties(
         }
         if (idadeMaximaLeitura == null) {
             idadeMaximaLeitura = Duration.ofMinutes(30);
+        }
+        if (cacheRegioes == null) {
+            cacheRegioes = Duration.ofMinutes(10);
         }
         if (tamanhoLote <= 0 || tamanhoLote > 500) {
             tamanhoLote = 100;

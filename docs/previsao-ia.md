@@ -42,6 +42,7 @@ sensor + última leitura ──► PrevisaoService ──► PrevisaoIaClient �
 | GET | `/previsoes` | Mapa: um item por sensor, com `status` VALIDA / DESATUALIZADA / SEM_PREVISAO |
 | GET | `/previsoes/sensores/{id}` | Última previsão de um sensor |
 | POST | `/previsoes/sensores/{id}/atualizar` | Recalcula na hora (503 se o serviço de IA não responder) |
+| GET | `/previsoes/regioes` | Risco por subprefeitura, para o aviso de região do app |
 | POST | `/admin/previsoes/atualizar` | Recalcula todos os sensores ativos |
 | POST | `/admin/previsoes/checar` | Diz se o serviço responde e qual versão do modelo está carregada |
 
@@ -58,6 +59,7 @@ agora (medido)"), `semLeituraSensor` e `status`.
 | `ia.timeout` | `2s` | Conexão e leitura |
 | `ia.validade` | `30m` | Usada só quando a resposta não traz `validaAte` |
 | `ia.idade-maxima-leitura` | `30m` | Leitura mais velha que isso não é enviada |
+| `ia.cache-regioes` | `10m` | Cache do aviso por região no backend |
 | `ia.tamanho-lote` | `100` | Itens por chamada de lote (o serviço aceita até 500) |
 | `ia.falhas-para-abrir` | `3` | Falhas seguidas que desligam o serviço temporariamente |
 | `ia.pausa-apos-falhas` | `1m` | Quanto tempo ficar sem tentar |
@@ -80,6 +82,24 @@ Sem o serviço de IA no ar, o esperado é: `checar` devolvendo `respondeu: false
 devolvendo `previsoesGravadas: 0` e o mapa com os sensores em `SEM_PREVISAO`. O backend segue
 funcionando.
 
+## Aviso por região
+
+`GET /previsoes/regioes` devolve o risco por **subprefeitura**: o maior risco entre os pontos
+monitorados de cada uma. O motivo está no ADR 0005 do ml-service — por ponto, o alerta ALTO
+acerta 1,6 %; por subprefeitura, 8 %. É a escala em que a chuva de 9 km do modelo realmente
+enxerga.
+
+Dois cuidados na tela:
+
+- `cobertura = "SEM_COBERTURA"` significa que a região tem menos de 3 pontos monitorados. O
+  nível vem nulo, e a tela deve dizer "sem cobertura" — **nunca** "sem risco".
+- O aviso de região **não substitui** o nível por ponto: o mapa e o desvio de rota continuam
+  saindo de `/previsoes`.
+
+O resultado fica 10 minutos em cache no backend, porque a chuva do Open-Meteo só muda de hora em
+hora. Nada disso vai para o banco: o histórico por ponto na `TBL_PREVISAO` já permite
+reconstruir a região depois.
+
 ## Ainda em aberto
 
 - **Alerta automático.** `TBL_ALERTA` exige `ID_LEITURA`, então hoje só dá para gerar alerta
@@ -87,5 +107,5 @@ funcionando.
   precisa poder apontar para uma previsão. Decisão do grupo.
 - **WebSocket.** O projeto já tem o starter; falta publicar as mudanças de nível para o app não
   ficar consultando de tempos em tempos.
-- **Alerta por região.** O modelo acerta bem mais por zona do que por ponto. Seria um endpoint
-  novo ("risco elevado na Zona Norte nas próximas 3 h"). Ver R18 no ml-service.
+- **Alerta automático por região.** O aviso já existe em `/previsoes/regioes`, mas ninguém é
+  notificado por ele ainda — depende da decisão sobre alerta a partir de previsão.

@@ -34,7 +34,7 @@ class PrevisaoIaClientTest {
     void preparar() {
         PrevisaoProperties propriedades = new PrevisaoProperties(
                 true, BASE, Duration.ofSeconds(2), Duration.ofMinutes(30), Duration.ofMinutes(30),
-                100, 2, Duration.ofMinutes(1));
+                Duration.ofMinutes(10), 100, 2, Duration.ofMinutes(1));
         RestClient.Builder construtor = RestClient.builder().baseUrl(BASE);
         servidor = MockRestServiceServer.bindTo(construtor).build();
         cliente = new PrevisaoIaClient(propriedades, construtor.build());
@@ -113,7 +113,7 @@ class PrevisaoIaClientTest {
     void desligada() {
         PrevisaoProperties desligada = new PrevisaoProperties(
                 false, BASE, Duration.ofSeconds(2), Duration.ofMinutes(30), Duration.ofMinutes(30),
-                100, 3, Duration.ofMinutes(1));
+                Duration.ofMinutes(10), 100, 3, Duration.ofMinutes(1));
         RestClient.Builder construtor = RestClient.builder().baseUrl(BASE);
         MockRestServiceServer vazio = MockRestServiceServer.bindTo(construtor).build();
         PrevisaoIaClient semIa = new PrevisaoIaClient(desligada, construtor.build());
@@ -121,6 +121,33 @@ class PrevisaoIaClientTest {
         assertThat(semIa.disponivel()).isFalse();
         assertThat(semIa.prever(requisicao())).isEmpty();
         vazio.verify();
+    }
+
+    @Test
+    @DisplayName("regiões: lê a lista e mantém a região sem cobertura, com nível nulo")
+    void regioes() {
+        servidor.expect(requestTo(BASE + "/predict/regioes"))
+                .andRespond(withSuccess("""
+                        {"geradaEm":"2026-09-20T16:00:00-03:00","validaAte":"2026-09-20T16:30:00-03:00",
+                         "horaReferencia":"2026-09-20T15:00:00-03:00","janelaHoras":3,"origem":"MODELO",
+                         "modeloVersao":"v1","minPontosRegiao":3,
+                         "regioes":[
+                           {"regiaoId":"VILA-MARIA-VILA-GUILHERME","regiao":"Vila Maria / Vila Guilherme",
+                            "zona":"NORTE","nivelRisco":"ALTO","probabilidadeMaxima":0.03,
+                            "pontoId":"P0042","pontosMonitorados":19,"cobertura":"COBERTA"},
+                           {"regiaoId":"ITAQUERA","regiao":"Itaquera","zona":"LESTE","nivelRisco":null,
+                            "probabilidadeMaxima":null,"pontosMonitorados":1,"cobertura":"SEM_COBERTURA"}],
+                         "avisos":[]}
+                        """, MediaType.APPLICATION_JSON));
+
+        var resposta = cliente.regioes();
+
+        assertThat(resposta).isPresent();
+        assertThat(resposta.get().regioes()).hasSize(2);
+        assertThat(resposta.get().regioes().get(0).regiao()).isEqualTo("Vila Maria / Vila Guilherme");
+        assertThat(resposta.get().regioes().get(1).nivelRisco()).isNull();
+        assertThat(resposta.get().regioes().get(1).cobertura()).isEqualTo("SEM_COBERTURA");
+        servidor.verify();
     }
 
     private PrevisaoIaRequest requisicao() {

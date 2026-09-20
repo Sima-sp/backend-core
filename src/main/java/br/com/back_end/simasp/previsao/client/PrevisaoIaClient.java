@@ -3,6 +3,7 @@ package br.com.back_end.simasp.previsao.client;
 import br.com.back_end.simasp.previsao.client.dto.ItemLoteIa;
 import br.com.back_end.simasp.previsao.client.dto.PrevisaoIaRequest;
 import br.com.back_end.simasp.previsao.client.dto.PrevisaoIaResponse;
+import br.com.back_end.simasp.previsao.client.dto.RegioesIaResponse;
 import br.com.back_end.simasp.previsao.config.PrevisaoProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,6 +94,27 @@ public class PrevisaoIaClient {
         } catch (Exception erro) {
             registrarFalha("/predict/batch", erro);
             return List.of();
+        }
+    }
+
+    /**
+     * Risco por subprefeitura (aviso de região do app).
+     *
+     * <p>Vazio quando o serviço não responde ou quando ele ainda não tem limiares de região —
+     * nesse caso o app simplesmente não mostra a faixa de aviso.</p>
+     */
+    public Optional<RegioesIaResponse> regioes() {
+        if (!disponivel()) {
+            return Optional.empty();
+        }
+        try {
+            RegioesIaResponse resposta = rest.get().uri("/predict/regioes")
+                    .retrieve().body(RegioesIaResponse.class);
+            registrarSucesso();
+            return Optional.ofNullable(resposta);
+        } catch (Exception erro) {
+            registrarFalha("/predict/regioes", erro);
+            return Optional.empty();
         }
     }
 

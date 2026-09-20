@@ -2,6 +2,7 @@ package br.com.back_end.simasp.previsao.controller;
 
 import br.com.back_end.simasp.previsao.client.PrevisaoIaClient;
 import br.com.back_end.simasp.previsao.service.PrevisaoService;
+import br.com.back_end.simasp.previsao.service.RegiaoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,15 +17,19 @@ public class PrevisaoAdminController {
 
     private final PrevisaoService service;
     private final PrevisaoIaClient cliente;
+    private final RegiaoService regiaoService;
 
-    public PrevisaoAdminController(PrevisaoService service, PrevisaoIaClient cliente) {
+    public PrevisaoAdminController(PrevisaoService service, PrevisaoIaClient cliente,
+                                   RegiaoService regiaoService) {
         this.service = service;
         this.cliente = cliente;
+        this.regiaoService = regiaoService;
     }
 
     /** Recalcula todos os sensores ativos agora, sem esperar o agendador. */
     @PostMapping("/atualizar")
     public ResponseEntity<Map<String, Object>> atualizarTodos() {
+        regiaoService.limparCache();
         return ResponseEntity.ok(Map.of("previsoesGravadas", service.atualizarTodos()));
     }
 
