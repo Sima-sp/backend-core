@@ -9,6 +9,7 @@ import br.com.back_end.simasp.sensor.repository.SensorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -27,7 +28,8 @@ public class SensorService {
 
     public SensorResponse cadastrarSensor(SensorRequest request) {
 
-        boolean existeSensorNoLocal = repository.existsByLatitudeAndLongitude(request.latitude(), request.longitude());
+        boolean existeSensorNoLocal = repository.existsByLatitudeAndLongitude(
+                BigDecimal.valueOf(request.latitude()), BigDecimal.valueOf(request.longitude()));
 
         if(existeSensorNoLocal)
         {
@@ -39,9 +41,13 @@ public class SensorService {
         return mapper.paraSensorResponse(sensor);
     }
 
-    public SensorResponse trazerSensoresProximos(Double longitude, Double latitude)
+    /** Sensores a até {@code distanciaMetros} do usuário (padrão de 2 km se nada for informado). */
+    public List<SensorResponse> trazerSensoresProximos(Double latitude, Double longitude, Double distanciaMetros)
     {
-        return null;
+        double raio = distanciaMetros == null ? 2000.0 : distanciaMetros;
+
+        return repository.sensoresProximos(latitude, longitude, raio)
+                .stream().map(mapper::paraSensorResponse).toList();
     }
 
 

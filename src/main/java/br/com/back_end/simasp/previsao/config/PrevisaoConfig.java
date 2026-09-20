@@ -21,13 +21,20 @@ public class PrevisaoConfig {
     /**
      * Cliente HTTP do serviço de IA, com timeout curto nos dois lados (conexão e leitura).
      * Sem timeout, uma requisição do app poderia ficar pendurada esperando a previsão.
+     *
+     * <p>O construtor vem de {@code RestClient.builder()}, e não de um {@code RestClient.Builder}
+     * injetado: no Spring Boot 4 esse bean só existe com o módulo de cliente HTTP, que este
+     * projeto não usa. Assim o módulo de previsão não depende dessa autoconfiguração.</p>
      */
     @Bean("restClientIa")
-    public RestClient restClientIa(PrevisaoProperties propriedades, RestClient.Builder construtor) {
+    public RestClient restClientIa(PrevisaoProperties propriedades) {
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(propriedades.timeout());
         fabrica.setReadTimeout(propriedades.timeout());
 
-        return construtor.baseUrl(propriedades.url()).requestFactory(fabrica).build();
+        return RestClient.builder()
+                .baseUrl(propriedades.url())
+                .requestFactory(fabrica)
+                .build();
     }
 }
