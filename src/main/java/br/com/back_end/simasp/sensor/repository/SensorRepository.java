@@ -17,7 +17,7 @@ public interface SensorRepository extends JpaRepository <Sensor, Long> {
 
 
 
-    @Query(value = "SELECT s FROM Sensor WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros")
-    List<Sensor> sensoresProximosDistancia(@Param("longitude_usuario") BigDecimal longitude);
+    @Query(value = "SELECT s FROM Sensor s WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros AND s.status = 'ATIVO'")
+    List<Sensor> sensoresProximosDistancia(@Param("longitude_usuario") BigDecimal longitude, @Param("latitude_usuario") BigDecimal latitude, @Param("distancia_metros") Integer distanciaMetros);
 
 }
