@@ -14,6 +14,9 @@ import java.util.List;
  * sensor com o aviso "desatualizada" em vez de nada. Quando
  * {@code medicaoTransbordando = true}, o app deve trocar a porcentagem por "Transbordando
  * agora (medido)" — a probabilidade continua sendo a do modelo (R5).</p>
+ *
+ * <p>{@code simulada = true} indica previsão feita com chuva de um cenário do modo de
+ * demonstração, não com a chuva real. O app deve avisar isso na tela.</p>
  */
 public record PrevisaoResponse(
         Long sensorId,
@@ -35,6 +38,7 @@ public record PrevisaoResponse(
         Double chuvaRecente3hMm,
         Double chuvaPrevista3hMm,
         OrigemPrevisaoEnum origem,
-        String modeloVersao
+        String modeloVersao,
+        Boolean simulada
 ) {
 }

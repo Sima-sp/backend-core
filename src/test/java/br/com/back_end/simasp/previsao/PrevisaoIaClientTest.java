@@ -4,10 +4,11 @@ import br.com.back_end.simasp.previsao.client.PrevisaoIaClient;
 import br.com.back_end.simasp.previsao.client.dto.PrevisaoIaRequest;
 import br.com.back_end.simasp.previsao.client.dto.PrevisaoIaResponse;
 import br.com.back_end.simasp.previsao.config.PrevisaoProperties;
+import br.com.back_end.simasp.previsao.enums.CenarioChuvaEnum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -19,6 +20,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -34,7 +36,7 @@ class PrevisaoIaClientTest {
     void preparar() {
         PrevisaoProperties propriedades = new PrevisaoProperties(
                 true, BASE, Duration.ofSeconds(2), Duration.ofMinutes(30), Duration.ofMinutes(30),
-                Duration.ofMinutes(10), 100, 2, Duration.ofMinutes(1));
+                Duration.ofMinutes(10), 100, 2, Duration.ofMinutes(1), false, Duration.ofMinutes(30));
         RestClient.Builder construtor = RestClient.builder().baseUrl(BASE);
         servidor = MockRestServiceServer.bindTo(construtor).build();
         cliente = new PrevisaoIaClient(propriedades, construtor.build());
@@ -113,7 +115,7 @@ class PrevisaoIaClientTest {
     void desligada() {
         PrevisaoProperties desligada = new PrevisaoProperties(
                 false, BASE, Duration.ofSeconds(2), Duration.ofMinutes(30), Duration.ofMinutes(30),
-                Duration.ofMinutes(10), 100, 3, Duration.ofMinutes(1));
+                Duration.ofMinutes(10), 100, 3, Duration.ofMinutes(1), false, Duration.ofMinutes(30));
         RestClient.Builder construtor = RestClient.builder().baseUrl(BASE);
         MockRestServiceServer vazio = MockRestServiceServer.bindTo(construtor).build();
         PrevisaoIaClient semIa = new PrevisaoIaClient(desligada, construtor.build());
@@ -150,7 +152,47 @@ class PrevisaoIaClientTest {
         servidor.verify();
     }
 
+    @Test
+    @DisplayName("demonstração: a série de chuva vai no corpo, e campos nulos não são enviados")
+    void enviaChuvaSimulada() {
+        servidor.expect(requestTo(BASE + "/predict"))
+                .andExpect(jsonPath("$.chuvaHoraria.length()").value(72))
+                .andExpect(jsonPath("$.chuvaHoraria[71]").value(20.0))
+                .andExpect(jsonPath("$.chuvaMm").doesNotExist())
+                .andRespond(withSuccess("""
+                        {"sensorId":7,"probabilidadeAlagamento":0.017,"nivelRisco":"ALTO",
+                         "nivelRiscoModelo":"ALTO","fonteChuva":"INFORMADA","origem":"MODELO",
+                         "modeloVersao":"v1"}
+                        """, MediaType.APPLICATION_JSON));
+
+        PrevisaoIaRequest comCenario = new PrevisaoIaRequest(7L, -23.5152, -46.5841, OffsetDateTime.now(),
+                null, null, null, CenarioChuvaEnum.CHUVA_FORTE.serie());
+        Optional<PrevisaoIaResponse> resposta = cliente.prever(comCenario);
+
+        assertThat(resposta).isPresent();
+        assertThat(resposta.get().fonteChuva()).isEqualTo("INFORMADA");
+        servidor.verify();
+    }
+
+    @Test
+    @DisplayName("regiões na demonstração: usa POST com a série, em vez do GET")
+    void regioesComChuvaSimulada() {
+        servidor.expect(requestTo(BASE + "/predict/regioes"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.chuvaHoraria.length()").value(72))
+                .andRespond(withSuccess("""
+                        {"origem":"MODELO","modeloVersao":"v1","minPontosRegiao":3,
+                         "fonteChuva":"INFORMADA","regioes":[],"avisos":[]}
+                        """, MediaType.APPLICATION_JSON));
+
+        var resposta = cliente.regioes(CenarioChuvaEnum.CHUVA_FORTE.serie());
+
+        assertThat(resposta).isPresent();
+        assertThat(resposta.get().fonteChuva()).isEqualTo("INFORMADA");
+        servidor.verify();
+    }
+
     private PrevisaoIaRequest requisicao() {
-        return new PrevisaoIaRequest(7L, -23.5152, -46.5841, OffsetDateTime.now(), 85.0, 20.0, null);
+        return new PrevisaoIaRequest(7L, -23.5152, -46.5841, OffsetDateTime.now(), 85.0, 20.0, null, null);
     }
 }

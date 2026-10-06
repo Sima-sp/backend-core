@@ -43,6 +43,21 @@ class PrevisaoMapperTest {
         assertThat(previsao.getValidaAte()).isEqualTo(LocalDateTime.of(2026, 9, 19, 10, 30));
         assertThat(previsao.getMotivosAjuste()).isEqualTo("nivelAgua 85%;lixo 70% com chuva");
         assertThat(mapper.paraResposta(previsao).motivosAjuste()).hasSize(2);
+        assertThat(mapper.paraResposta(previsao).simulada()).isFalse();  // chuva real do Open-Meteo
+    }
+
+    @Test
+    @DisplayName("previsão com chuva de cenário sai marcada como simulada")
+    void marcaSimulada() {
+        Previsao previsao = new Previsao();
+        previsao.setSensor(sensor());
+        previsao.setValidaAte(LocalDateTime.now().plusMinutes(30));
+        previsao.setFonteChuva("INFORMADA");
+
+        assertThat(mapper.paraResposta(previsao).simulada()).isTrue();
+        // chuva real da leitura, usada quando o Open-Meteo cai: não é simulação
+        assertThat(mapper.simulada("INFORMADA_LEGADO")).isFalse();
+        assertThat(mapper.simulada(null)).isFalse();
     }
 
     @Test

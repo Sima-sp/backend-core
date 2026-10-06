@@ -18,6 +18,9 @@ import java.time.Duration;
  * @param tamanhoLote     itens por chamada de {@code /predict/batch} (o serviço aceita até 500)
  * @param falhasParaAbrir falhas seguidas que desligam o serviço temporariamente
  * @param pausaAposFalhas quanto tempo ficar sem tentar depois de abrir
+ * @param demonstracaoHabilitada permite ligar o modo de demonstração (chuva simulada); o padrão
+ *                        é desligado, para não simular chuva num ambiente de verdade por engano
+ * @param demonstracaoDuracao depois desse tempo a demonstração desliga sozinha
  */
 @ConfigurationProperties(prefix = "ia")
 public record PrevisaoProperties(
@@ -29,7 +32,9 @@ public record PrevisaoProperties(
         Duration cacheRegioes,
         int tamanhoLote,
         int falhasParaAbrir,
-        Duration pausaAposFalhas
+        Duration pausaAposFalhas,
+        boolean demonstracaoHabilitada,
+        Duration demonstracaoDuracao
 ) {
 
     public PrevisaoProperties {
@@ -56,6 +61,9 @@ public record PrevisaoProperties(
         }
         if (pausaAposFalhas == null) {
             pausaAposFalhas = Duration.ofMinutes(1);
+        }
+        if (demonstracaoDuracao == null) {
+            demonstracaoDuracao = Duration.ofMinutes(30);
         }
     }
 }

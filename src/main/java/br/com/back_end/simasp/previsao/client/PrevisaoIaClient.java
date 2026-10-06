@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -104,12 +105,29 @@ public class PrevisaoIaClient {
      * nesse caso o app simplesmente não mostra a faixa de aviso.</p>
      */
     public Optional<RegioesIaResponse> regioes() {
+        return regioes(null);
+    }
+
+    /**
+     * Risco por subprefeitura com chuva simulada (modo de demonstração).
+     *
+     * @param chuvaHoraria série de 72 horas aplicada a todos os pontos; nula = chuva real
+     */
+    public Optional<RegioesIaResponse> regioes(List<Double> chuvaHoraria) {
         if (!disponivel()) {
             return Optional.empty();
         }
         try {
-            RegioesIaResponse resposta = rest.get().uri("/predict/regioes")
-                    .retrieve().body(RegioesIaResponse.class);
+            RegioesIaResponse resposta;
+            if (chuvaHoraria == null) {
+                resposta = rest.get().uri("/predict/regioes")
+                        .retrieve().body(RegioesIaResponse.class);
+            } else {
+                resposta = rest.post().uri("/predict/regioes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("chuvaHoraria", chuvaHoraria))
+                        .retrieve().body(RegioesIaResponse.class);
+            }
             registrarSucesso();
             return Optional.ofNullable(resposta);
         } catch (Exception erro) {

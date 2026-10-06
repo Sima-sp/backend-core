@@ -51,16 +51,19 @@ public class PrevisaoService {
     private final LeituraRepository leituraRepository;
     private final PrevisaoMapper mapper;
     private final PrevisaoProperties propriedades;
+    private final DemonstracaoService demonstracao;
 
     public PrevisaoService(PrevisaoIaClient cliente, PrevisaoRepository repository,
                            SensorRepository sensorRepository, LeituraRepository leituraRepository,
-                           PrevisaoMapper mapper, PrevisaoProperties propriedades) {
+                           PrevisaoMapper mapper, PrevisaoProperties propriedades,
+                           DemonstracaoService demonstracao) {
         this.cliente = cliente;
         this.repository = repository;
         this.sensorRepository = sensorRepository;
         this.leituraRepository = leituraRepository;
         this.mapper = mapper;
         this.propriedades = propriedades;
+        this.demonstracao = demonstracao;
     }
 
     /** Recalcula a previsão de um sensor agora (chamado ao chegar leitura nova, por exemplo). */
@@ -150,15 +153,41 @@ public class PrevisaoService {
         return repository.save(mapper.paraEntidade(resposta, sensor, propriedades.validade()));
     }
 
+    /**
+     * Monta o pedido ao serviço de IA.
+     *
+     * <p>No fluxo normal vão só a posição e a última leitura. Com o modo de demonstração ligado
+     * para este sensor, entram a série de chuva do cenário e, se informadas, as leituras
+     * simuladas de água e lixo (que têm prioridade sobre a leitura real).</p>
+     */
     private PrevisaoIaRequest montarRequisicao(Sensor sensor, Leitura leitura) {
+        Double nivelAgua = leitura == null ? null : leitura.getNivelAgua();
+        Double porcentagemLixo = leitura == null ? null : leitura.getPorcentagemDesperdicio();
+        Double chuvaMm = leitura == null ? null : leitura.getChuvaMM();
+        List<Double> chuvaHoraria = null;
+
+        Optional<DemonstracaoService.Estado> cenario = demonstracao.paraSensor(sensor.getId());
+        if (cenario.isPresent()) {
+            DemonstracaoService.Estado simulado = cenario.get();
+            chuvaHoraria = simulado.cenario().serie();
+            chuvaMm = null;  // a chuva real da leitura não pode se misturar com a simulada
+            if (simulado.nivelAgua() != null) {
+                nivelAgua = simulado.nivelAgua();
+            }
+            if (simulado.porcentagemLixo() != null) {
+                porcentagemLixo = simulado.porcentagemLixo();
+            }
+        }
+
         return new PrevisaoIaRequest(
                 sensor.getId(),
                 paraDouble(sensor.getLatitude()),
                 paraDouble(sensor.getLongitude()),
                 OffsetDateTime.now(),
-                leitura == null ? null : leitura.getNivelAgua(),
-                leitura == null ? null : leitura.getPorcentagemDesperdicio(),
-                leitura == null ? null : leitura.getChuvaMM());
+                nivelAgua,
+                porcentagemLixo,
+                chuvaMm,
+                chuvaHoraria);
     }
 
     /** Leitura velha demais não vale como "estado atual" do sensor. */

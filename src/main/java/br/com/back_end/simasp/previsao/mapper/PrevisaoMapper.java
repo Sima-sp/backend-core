@@ -31,6 +31,7 @@ public class PrevisaoMapper {
     private static final Logger log = LoggerFactory.getLogger(PrevisaoMapper.class);
     private static final ZoneId FUSO_LOCAL = ZoneId.of("America/Sao_Paulo");
     private static final String SEPARADOR_MOTIVOS = ";";
+    private static final String FONTE_CHUVA_SIMULADA = "INFORMADA";
 
     /** Resposta do serviço de IA → entidade pronta para salvar. */
     public Previsao paraEntidade(PrevisaoIaResponse resposta, Sensor sensor, Duration validadePadrao) {
@@ -84,7 +85,8 @@ public class PrevisaoMapper {
                 previsao.getChuvaRecente3hMm(),
                 previsao.getChuvaPrevista3hMm(),
                 previsao.getOrigem(),
-                previsao.getModeloVersao());
+                previsao.getModeloVersao(),
+                simulada(previsao.getFonteChuva()));
     }
 
     /** Sensor sem nenhuma previsão: o mapa mostra o ponto assim mesmo. */
@@ -93,7 +95,15 @@ public class PrevisaoMapper {
                 sensor.getId(), paraDouble(sensor.getLatitude()), paraDouble(sensor.getLongitude()),
                 sensor.getVizinhanca(), StatusPrevisaoEnum.SEM_PREVISAO,
                 null, null, null, null, null, null, null,
-                false, false, true, List.of(), null, null, null, null);
+                false, false, true, List.of(), null, null, null, null, false);
+    }
+
+    /**
+     * A chuva veio no pedido, e não do Open-Meteo: é um cenário do modo de demonstração.
+     * ("INFORMADA_LEGADO" não conta — é a chuva real da leitura, usada quando o Open-Meteo cai.)
+     */
+    public boolean simulada(String fonteChuva) {
+        return FONTE_CHUVA_SIMULADA.equals(fonteChuva);
     }
 
     public StatusPrevisaoEnum statusDe(Previsao previsao) {

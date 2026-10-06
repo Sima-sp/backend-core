@@ -3,6 +3,7 @@ package br.com.back_end.simasp.previsao.service;
 import br.com.back_end.simasp.previsao.client.PrevisaoIaClient;
 import br.com.back_end.simasp.previsao.client.dto.RegioesIaResponse;
 import br.com.back_end.simasp.previsao.config.PrevisaoProperties;
+import br.com.back_end.simasp.previsao.enums.CenarioChuvaEnum;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,27 +17,36 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code TBL_PREVISAO}, e uma tabela a mais só criaria dado duplicado. O que existe aqui é um
  * cache curto em memória, porque a tela inicial do app pede isso a cada abertura e a chuva do
  * Open-Meteo só muda de hora em hora.</p>
+ *
+ * <p>No modo de demonstração, o cenário de chuva vai junto com o pedido. O cache guarda com
+ * qual cenário foi feito, então ligar ou desligar a demonstração nunca devolve resposta velha.</p>
  */
 @Service
 public class RegiaoService {
 
     private final PrevisaoIaClient cliente;
     private final PrevisaoProperties propriedades;
+    private final DemonstracaoService demonstracao;
     private final AtomicReference<Cache> cache = new AtomicReference<>();
 
-    public RegiaoService(PrevisaoIaClient cliente, PrevisaoProperties propriedades) {
+    public RegiaoService(PrevisaoIaClient cliente, PrevisaoProperties propriedades,
+                         DemonstracaoService demonstracao) {
         this.cliente = cliente;
         this.propriedades = propriedades;
+        this.demonstracao = demonstracao;
     }
 
     /** Regiões em risco, do cache quando ainda válido. Vazio quando a IA não responde. */
     public Optional<RegioesIaResponse> regioes() {
+        CenarioChuvaEnum cenario = demonstracao.ativa().map(DemonstracaoService.Estado::cenario).orElse(null);
+
         Cache atual = cache.get();
-        if (atual != null && atual.validoAte().isAfter(Instant.now())) {
+        if (atual != null && atual.cenario() == cenario && atual.validoAte().isAfter(Instant.now())) {
             return Optional.of(atual.resposta());
         }
-        Optional<RegioesIaResponse> resposta = cliente.regioes();
-        resposta.ifPresent(r -> cache.set(new Cache(r, Instant.now().plus(propriedades.cacheRegioes()))));
+        Optional<RegioesIaResponse> resposta = cliente.regioes(cenario == null ? null : cenario.serie());
+        resposta.ifPresent(r -> cache.set(
+                new Cache(r, Instant.now().plus(propriedades.cacheRegioes()), cenario)));
         return resposta;
     }
 
@@ -45,6 +55,6 @@ public class RegiaoService {
         cache.set(null);
     }
 
-    private record Cache(RegioesIaResponse resposta, Instant validoAte) {
+    private record Cache(RegioesIaResponse resposta, Instant validoAte, CenarioChuvaEnum cenario) {
     }
 }

@@ -43,6 +43,9 @@ sensor + última leitura ──► PrevisaoService ──► PrevisaoIaClient �
 | GET | `/previsoes/sensores/{id}` | Última previsão de um sensor |
 | POST | `/previsoes/sensores/{id}/atualizar` | Recalcula na hora (503 se o serviço de IA não responder) |
 | GET | `/previsoes/regioes` | Risco por subprefeitura, para o aviso de região do app |
+| GET | `/admin/demonstracao` | Diz se há cenário de chuva simulada valendo |
+| POST | `/admin/demonstracao/iniciar` | Liga um cenário e recalcula as previsões |
+| POST | `/admin/demonstracao/encerrar` | Desliga e recalcula com a chuva real |
 | POST | `/admin/previsoes/atualizar` | Recalcula todos os sensores ativos |
 | POST | `/admin/previsoes/checar` | Diz se o serviço responde e qual versão do modelo está carregada |
 
@@ -60,6 +63,8 @@ agora (medido)"), `semLeituraSensor` e `status`.
 | `ia.validade` | `30m` | Usada só quando a resposta não traz `validaAte` |
 | `ia.idade-maxima-leitura` | `30m` | Leitura mais velha que isso não é enviada |
 | `ia.cache-regioes` | `10m` | Cache do aviso por região no backend |
+| `ia.demonstracao-habilitada` | `false` | Permite ligar a chuva simulada (`IA_DEMONSTRACAO=true` no `.env`) |
+| `ia.demonstracao-duracao` | `30m` | Depois disso a demonstração desliga sozinha |
 | `ia.tamanho-lote` | `100` | Itens por chamada de lote (o serviço aceita até 500) |
 | `ia.falhas-para-abrir` | `3` | Falhas seguidas que desligam o serviço temporariamente |
 | `ia.pausa-apos-falhas` | `1m` | Quanto tempo ficar sem tentar |
@@ -99,6 +104,59 @@ Dois cuidados na tela:
 O resultado fica 10 minutos em cache no backend, porque a chuva do Open-Meteo só muda de hora em
 hora. Nada disso vai para o banco: o histórico por ponto na `TBL_PREVISAO` já permite
 reconstruir a região depois.
+
+## Modo de demonstração
+
+Num dia sem chuva todas as previsões ficam em BAIXO. Está certo, mas não deixa mostrar o sistema
+funcionando. O modo de demonstração troca a **chuva** por um cenário simulado; o modelo, os
+limiares e o ajuste pelo sensor continuam sendo os de verdade.
+
+```bash
+# 1. no .env do backend, e reinicie
+IA_DEMONSTRACAO=true
+
+# 2. chuva forte em todos os sensores, por 20 minutos
+curl -X POST http://localhost:8080/admin/demonstracao/iniciar \
+     -H 'Content-Type: application/json' \
+     -d '{"cenario": "CHUVA_FORTE", "minutos": 20}'
+
+# 3. bueiro transbordando só no sensor 1 (medição, não previsão)
+curl -X POST http://localhost:8080/admin/demonstracao/iniciar \
+     -H 'Content-Type: application/json' \
+     -d '{"cenario": "CHUVA_FORTE", "sensorIds": [1], "nivelAgua": 105}'
+
+# 4. volta para a chuva real
+curl -X POST http://localhost:8080/admin/demonstracao/encerrar
+```
+
+| Cenário | Chuva simulada | O que costuma aparecer |
+|---|---|---|
+| `SECO` | nada em 72 h | tudo em BAIXO |
+| `CHUVA_MODERADA` | 10,5 mm nas últimas 5 h | parte dos pontos em MEDIO e alguns em ALTO |
+| `CHUVA_FORTE` | 68,5 mm nas últimas 6 h | maioria em MEDIO ou ALTO |
+
+Como funciona e o que cuidar:
+
+- **Só liga com `ia.demonstracao-habilitada=true`.** O padrão é desligado; sem isso o
+  `iniciar` responde 403. Não deixe ligado num ambiente de verdade.
+- **Desliga sozinho** depois de `ia.demonstracao-duracao` (ou dos `minutos` pedidos), caso
+  alguém esqueça. Reiniciar o backend também encerra, porque o estado fica em memória.
+- **Toda previsão simulada sai marcada:** `simulada: true` em `/previsoes` e
+  `fonteChuva: "INFORMADA"` em `/previsoes/regioes`. O app deve mostrar um aviso de simulação
+  enquanto isso for verdade.
+- **O histórico não se mistura:** as linhas simuladas ficam na `TBL_PREVISAO` com
+  `TX_FONTE_CHUVA = 'INFORMADA'`, então dá para filtrá-las em qualquer análise.
+- **O nível depende do dia e da hora.** O modelo usa hora, dia da semana e mês, então a mesma
+  chuva forte dá mais pontos em ALTO numa tarde de dia útil do que num domingo à noite. Ensaie
+  no mesmo horário da apresentação.
+- **Os sensores precisam estar sobre pontos monitorados.** A mais de 500 m de um dos 137 pontos
+  do modelo, o risco quase não sobe nem com chuva forte, porque falta o histórico do lugar. Os
+  "Locais de teste" do script de exemplo estão quase todos assim. O `docs/demo-sensores.sql`
+  move os oito para pontos reais da Zona Norte; rode antes de apresentar.
+- `sensorIds` limita o cenário a alguns sensores; o aviso por região, quando há cenário ligado,
+  aplica a chuva a todos os pontos da cidade.
+- `nivelAgua` e `porcentagemLixo` simulam a leitura do sensor. Com `nivelAgua` de 100 ou mais,
+  o nível vira CRITICO com `medicaoTransbordando: true`.
 
 ## Ainda em aberto
 
