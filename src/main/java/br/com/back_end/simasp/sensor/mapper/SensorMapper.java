@@ -12,7 +12,7 @@ public interface SensorMapper {
 
     LocalizacaoSensorResponse sensorParaLocalizacaoSensor(Sensor sensor);
 
-    Sensor paraSensorEntidade(SensorRequest sensor);
+    Sensor requestParaSensorEntidade(SensorRequest request);
     SensorResponse paraSensorResponse(Sensor sensor);
 
 }

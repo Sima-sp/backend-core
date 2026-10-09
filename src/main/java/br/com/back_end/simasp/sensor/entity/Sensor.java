@@ -32,7 +32,7 @@ public class Sensor {
     @Enumerated(EnumType.STRING)
     private StatusSensor status = StatusSensor.ATIVO;
 
-    @Column (name = "DT_DATA_INSTALACAO")
+    @Column (name = "DT_INSTALACAO")
     private LocalDateTime dataInstalacao = LocalDateTime.now();
 }
 

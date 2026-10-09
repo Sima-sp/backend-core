@@ -19,13 +19,12 @@ public class GlobalExceptionHandler {
         return problema;
     }
 
-    @ExceptionHandler(EmailJaCadastradoException.class)
-    public ProblemDetail tratarEmailJaCadastrado(EmailJaCadastradoException exception)
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ProblemDetail tratarCredenciaisInvalidas(CredenciaisInvalidasException exception)
     {
-        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
-
-        problema.setTitle("E-mail já cadastrado.");
-        problema.setProperty("codigo", "EMAIL_JA_CADASTRADO");
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
+        problema.setTitle("Falha na autenticação");
+        problema.setProperty("codigo", "CREDENCIAIS_INVALIDAS");
 
         return problema;
     }
@@ -37,6 +36,27 @@ public class GlobalExceptionHandler {
 
         problema.setTitle("Sensor com latitude e longitude duplicado.");
         problema.setProperty("codigo", "SENSOR_COM_LOCALIZACAO_DUPLICADA");
+
+        return problema;
+    }
+
+
+    @ExceptionHandler(AlteracaoInvalidaException.class)
+    public ProblemDetail tratarRecursoRepetido(AlteracaoInvalidaException exception)
+    {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problema.setTitle("Alteração inválida");
+        problema.setProperty("codigo", "ALTERACAO_INVALIDA");
+
+        return problema;
+    }
+
+    @ExceptionHandler(RecursoExistenteException.class)
+    public ProblemDetail tratarRecursoExistente(RecursoExistenteException exception)
+    {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problema.setTitle("Recurso existente");
+        problema.setProperty("codigo", "RECURSO_EXISTENTE");
 
         return problema;
     }

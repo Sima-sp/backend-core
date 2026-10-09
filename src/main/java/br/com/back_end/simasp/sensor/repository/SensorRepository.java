@@ -17,7 +17,16 @@ public interface SensorRepository extends JpaRepository <Sensor, Long> {
 
 
 
-    @Query(value = "SELECT s FROM Sensor WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros")
-    List<Sensor> sensoresProximosDistancia(@Param("longitude_usuario") BigDecimal longitude);
+    // Busca sensores filtrando pelos ativos e por uma distância máxima em metros.
+    @Query(value = "SELECT s FROM Sensor s WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros AND s.status = 'ATIVO'")
+    List<Sensor> sensoresAtivosProximosDistancia(@Param("longitude_usuario") BigDecimal longitude, @Param("latitude_usuario") BigDecimal latitude, @Param("distancia_metros") Integer distanciaMetros);
+
+    // Busca sensores filtrando por status de sensor em MANUTENÇÃO
+    @Query(value = "SELECT s FROM Sensor s WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros AND s.status = 'MANUTENCAO'")
+    List<Sensor> sensoresManutencaoProximosDistancia(@Param("longitude_usuario") BigDecimal longitude, @Param("latitude_usuario") BigDecimal latitude, @Param("distancia_metros") Integer distanciaMetros);
+
+    // Busca sensores filtrando por status de sensor em INATIVO
+    @Query(value = "SELECT s FROM Sensor s WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros AND s.status = 'INATIVO'")
+    List<Sensor> sensoresInativosProximosDistancia(@Param("longitude_usuario") BigDecimal longitude, @Param("latitude_usuario") BigDecimal latitude, @Param("distancia_metros") Integer distanciaMetros);
 
 }

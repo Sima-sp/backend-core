@@ -31,7 +31,7 @@ public class Alerta {
     @Enumerated(EnumType.STRING)
     private StatusAlertaEnum status;
 
-    @Column(name = "DT_DATA_ALERTA")
+    @Column(name = "DT_ALERTA")
     private LocalDateTime dataAlerta = LocalDateTime.now();
 
 }

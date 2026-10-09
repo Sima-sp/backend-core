@@ -1,8 +1,10 @@
 package br.com.back_end.simasp.sensor.dto;
 
+import java.math.BigDecimal;
+
 public record LocalizacaoSensorResponse(
-        Double latitude,
-        Double longitude,
+        BigDecimal latitude,
+        BigDecimal longitude,
         String vizinhanca
 ) {
 }
