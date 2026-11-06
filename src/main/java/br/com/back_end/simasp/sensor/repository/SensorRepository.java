@@ -10,14 +10,25 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
+public interface SensorRepository extends JpaRepository<Sensor, Long> {
 
-public interface SensorRepository extends JpaRepository <Sensor, Long> {
+    /** Os tipos têm que ser os mesmos da entidade (BigDecimal), senão o Spring Data recusa o método. */
+    boolean existsByLatitudeAndLongitude(BigDecimal latitude, BigDecimal longitude);
 
-    boolean existsByLatitudeAndLongitude(Double latitude, Double longitude);
-
-
-
-    @Query(value = "SELECT s FROM Sensor WHERE ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:longitude_usuario, :latitude_usuario)) <= :distancia_metros")
-    List<Sensor> sensoresProximosDistancia(@Param("longitude_usuario") BigDecimal longitude);
-
+    /**
+     * Sensores a até {@code distanciaMetros} de um ponto.
+     *
+     * <p>Consulta nativa: {@code ST_Distance_Sphere} é função do MySQL e não existe em JPQL.</p>
+     */
+    @Query(value = """
+            SELECT *
+            FROM TBL_SENSOR s
+            WHERE ST_Distance_Sphere(
+                      POINT(s.NR_LONGITUDE, s.NR_LATITUDE),
+                      POINT(:longitude, :latitude)
+                  ) <= :distanciaMetros
+            """, nativeQuery = true)
+    List<Sensor> sensoresProximos(@Param("latitude") double latitude,
+                                  @Param("longitude") double longitude,
+                                  @Param("distanciaMetros") double distanciaMetros);
 }
